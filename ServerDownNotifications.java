@@ -206,8 +206,7 @@ public class ServerDownNotifications extends Application {
                      CustomPopUp fileError = new CustomPopUp(currentLine + " web service down"
                     , "Web Service Down", "ok", 250,50);
                      fileError.show();
-                     
-                }
+                                     }
                 else
                     System.out.println("loop again");
                     
@@ -217,8 +216,7 @@ public class ServerDownNotifications extends Application {
             
             catch(IOException e)
             {
-              CustomPopUp fileError = new CustomPopUp("problem reading files"
-              ,"Input Output error", "ok", 250,50);
+              CustomPopUp fileError = new CustomPopUp("problem reading files"              ,"Input Output error", "ok", 250,50);
               fileError.show();
             }
             return serverDown;
@@ -228,8 +226,7 @@ public class ServerDownNotifications extends Application {
         {
               try
                 {
-                    InetAddress address = InetAddress.getByName(url);
-                    return address.isReachable(1000);
+                    InetAddress address = InetAddress.getByName(url);                    return address.isReachable(1000);
               
                 }
                 catch(IOException e)
@@ -250,8 +247,8 @@ public class ServerDownNotifications extends Application {
              String to = servers.nextLine();
              
              //email made for notifying users via google smtp
-             String sender = "rjservers.com@gmail.com";
-             String pass = "Gears177!";
+             String sender = //
+             String pass =  //error left intentional so if someone trys to compile they realize they have to put in a reas passs word
              
              //email properties
              Properties properties = System.getProperties();
