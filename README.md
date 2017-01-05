@@ -5,8 +5,8 @@ Application that informs user when a webserver go's down
   -first release
   -correctly notifies user when webserver gos down
  
-  #errors
-    -says program is not responding while waiting to check servers
+ #errors
+  -says program is not responding while waiting to check servers
 
 #12/5/17
   -second release
