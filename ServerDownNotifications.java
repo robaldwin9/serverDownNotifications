@@ -22,20 +22,18 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 
 //Pings server url and notifys user when the server is down
 //Ronald Baldwin
-//1/1/17
+//1/5/17
 
-/*dev notes:
-    program says that it is not responding when it is in fact waiting to access servers again
-    Im assuming adding threads for paralell programming will fix this because it will allow users
-    to give input while the programming is waiting to ping servers again.
-*/
 public class ServerDownNotifications extends Application {
- 
-    @Override
-    public void start(Stage primaryStage) {
+
+     @Override
+   public void start(Stage primaryStage) {
         VBox primaryPane = new VBox();   //primary pane to contain all nodes
         HBox hContainer = new HBox();   //contains input box + prompt
         HBox hContainer1 = new HBox();  //contains input box + prompt
@@ -47,257 +45,305 @@ public class ServerDownNotifications extends Application {
         Label lblPrompt1 = new Label("Add a server for observence of uptime (ex: www.rjservers.com");
         
         //allows for user input
-        TextField ipInput = new TextField();
+        TextField urlInput = new TextField();
         TextField emailInput = new TextField();
         
         //initialize buttons
         Button btnAddServer = new Button("Add Server");
         Button btnAddEmail = new Button("Add Email");
         Button btnStart = new Button("Start Listening");
-        
+
         //add nodes to containers then create scene
         hContainer.getChildren().addAll(emailInput,lblPrompt);
-        hContainer1.getChildren().addAll(ipInput, lblPrompt1);
+        hContainer1.getChildren().addAll(urlInput, lblPrompt1);
         btnContainer.getChildren().addAll(btnAddServer,btnAddEmail,btnStart);
         primaryPane.getChildren().addAll(hContainer,hContainer1,btnContainer);
         Scene primaryScene = new Scene(primaryPane,500,80);
         
-       //show the windows
+       //show the window
         primaryStage.setTitle("Flag Server Down");
         primaryStage.setScene(primaryScene);
         primaryStage.show();
-        
+
         //inner class object to handle events
         EventMethods eventMethods = new EventMethods();
-        
-        //Event Handlers
+
+         //Event Handlers
         btnAddServer.setOnAction(event -> //add server to file list
         {
-            eventMethods.addServer(ipInput);
+            eventMethods.addServer(urlInput);
         });
         
-        btnAddEmail.setOnAction(event -> //add and save email for notifications
+        //add and save email for notifications
+        btnAddEmail.setOnAction(event -> 
         {
+
             eventMethods.addEmail(emailInput);
         });
+
         //check servers in 5 minute intervals to see if they have failed end loop and notify user when failure occurs
         btnStart.setOnAction(event -> 
         {
-            
-       while(!eventMethods.Listen()) 
-       {
-             try
-             {
-                TimeUnit.MINUTES.sleep(5);
-             }
-             catch(Exception e)
-             {
-                 //not sure what to do if sleep method fails
-             }
-        }
-    });
+            Runnable listen = new EventMethods();
+            Thread listenThread = new Thread(listen);
+            listenThread.start();
+        });
 }
-    
 
-    //class holding methods for gui events
-     class EventMethods
+//class holding methods for gui events
+class EventMethods implements Runnable
     {
-         //makes email file and stores user input
-        public void addEmail(TextField emailInput)
+    //thread runs this
+        @Override
+        public void run()
         {
-        
-              File emailList = new File("emailList.txt"); 
-            try{
-                PrintWriter emailOutput = new PrintWriter("emailList.txt");
-                if(!emailInput.getText().equals(""))
-                   {
-                        emailOutput.println(emailInput.getText());
-                        emailOutput.close();
-                        emailInput.setText("");
-                    }
-                        else
+           //while servers are not down sleep for 5 minutes then try again
+            while(!Listen())
+            {
+                   try
+                {
+                     TimeUnit.MINUTES.sleep(5);
+                }
+
+                catch(Exception e)
+                {        //tells gui thread to make changes to userInterface javaFx requires this
+                         Platform.runLater(new Runnable() 
+                        {
+                            @Override public void run() 
                             {
-                                CustomPopUp fileError = new CustomPopUp("email field was left empty"
-                                ,"invalid input", "ok", 250,50);
+                                 CustomPopUp fileError = new CustomPopUp("Listen thread failed",
+                                "thread failed", "ok", 250,50);
                                 fileError.show();
                             }
-                    
+                        });
+                }  
+                   
             }
-          catch(IOException ex)
-          {
-              CustomPopUp fileError = new CustomPopUp("could not find emailList.txt"
-              , "File error", "ok", 200,200);
-              fileError.show();
-          }
+            
         }
-        
-        //adds server to list of servers to check for uptime
-        public void addServer(TextField ipInput)
+        //makes email file and stores user input
+        public void addEmail(TextField emailInput)
         {
-        
-            File serverList = new File("serverList.txt"); //file to hold web servers to be checked
-            //add server to file
-            try{
-                if(serverList.exists())
+            File emailList = new File("emailList.txt"); 
+            try
+            {
+                PrintWriter emailOutput = new PrintWriter("emailList.txt");
+                if(!emailInput.getText().equals(""))
                 {
-                    PrintWriter ipOutput = new PrintWriter(new FileOutputStream(serverList,true));
-                        if(!ipInput.getText().equals("")) // makes sure user has entered data
-                            {
-                                ipOutput.println(ipInput.getText());
-                                ipInput.setText("");
-                            }
-                        else
-                            {
-                                CustomPopUp fileError = new CustomPopUp("server Field was left empty"
-                                ,"invalid input", "ok", 250,50);
-                                fileError.show(); 
-                            }
-              
-                   ipOutput.close();
-                    
+                    emailOutput.print(emailInput.getText());
+                    emailOutput.close();
+                    emailInput.setText("");
                 }
                 
                 else
-                    {
-                        PrintWriter ipOutput = new PrintWriter("serverList.txt");
-                        if(!ipInput.getText().equals(""))
-                            {
-                                ipOutput.println(ipInput.getText());
-                                ipOutput.close();
-                                ipInput.setText("");
-                            }
-                        else
-                            {
-                                CustomPopUp fileError = new CustomPopUp("server Field was left empty"
-                                ,"invalid input", "ok", 250,50);
-                                fileError.show();
-                            }
-                    }
+                {
+                    CustomPopUp fileError = new CustomPopUp("email field was left empty"
+                    ,"invalid input", "ok", 250,50);
+                    fileError.show();
+                }
+
             }
+
+            catch(IOException ex)
+            {
+                CustomPopUp fileError = new CustomPopUp("could not find emailList.txt"
+                , "File error", "ok", 200,200);
+                fileError.show();
+            }
+
+        }
+
+       //adds server to list of servers to check for uptime
+       public void addServer(TextField urlInput)
+        {
+            File serverList = new File("serverList.txt"); //file to hold web servers to be checked
+
+            //add server to file
+            try
+            {
+                if(serverList.exists())
+                {
+                    PrintWriter urlOutput = new PrintWriter(new FileOutputStream(serverList,true));
+                    if(!urlInput.getText().equals("")) // makes sure user has entered data
+                    {
+                        urlOutput.print(urlInput.getText());
+                        urlInput.setText("");
+
+                    }
+
+                    else
+                    {
+                        CustomPopUp fileError = new CustomPopUp("server Field was left empty"
+                        ,"invalid input", "ok", 250,50);
+                        fileError.show(); 
+
+                    }
+            urlOutput.close();
+                
+                }
+                
+                else
+                {
+                    PrintWriter urlOutput = new PrintWriter("serverList.txt");
+                    if(!urlInput.getText().equals(""))
+                    {
+                        urlOutput.println(urlInput.getText());
+                        urlOutput.close();
+                        urlInput.setText("");
+                    }
+
+                    else
+                    {
+                        CustomPopUp fileError = new CustomPopUp("server Field was left empty"
+                        ,"invalid input", "ok", 250,50);
+                        fileError.show();
+                    }
+
+                }
+            }
+
           catch(IOException ex)
           {
-              CustomPopUp fileError = new CustomPopUp("could not find serverList.txt"
-              , "File error", "ok", 250,50);
-              fileError.show();
+            CustomPopUp fileError = new CustomPopUp("could not find serverList.txt"
+            , "File error", "ok", 250,50);
+            fileError.show();
           }
-        
-        
-        
-        
+
         }
         
-       //checks if server is up. returns true if server not reached
+        //checks if server is up. returns true if server not reached
         public boolean Listen() 
         {
+            System.out.println("listening");
             boolean serverDown = false; // flag that is returned 
             try
             {
-            Scanner servers = new Scanner( new File("serverList.txt")); //read from file
-            
-           
-            while(servers.hasNextLine())//till end of file try to connect to servers if failure notify user
-            {
-                String currentLine = servers.nextLine(); //stores each line of file temperorairly
-                if(!reachable(currentLine)) //if site isnt reached send notification
+                Scanner servers = new Scanner( new File("serverList.txt")); //read from file
+                while(servers.hasNextLine())//till end of file try to connect to servers if failure notify user
                 {
-                    serverDown = true; //change flag because web server unreachable
-                    System.out.println("error");
-                    sendEmail(currentLine);
-                     CustomPopUp fileError = new CustomPopUp(currentLine + " web service down"
-                    , "Web Service Down", "ok", 250,50);
-                     fileError.show();
-                                     }
-                else
-                    System.out.println("loop again");
+                    String currentLine = servers.nextLine(); //stores each line of file temperorairly
+                    if(!reachable(currentLine)) //if site isnt reached send notification
+                    {
+                        serverDown = true; //change flag because web server unreachable
+                        sendEmail(currentLine);
+                        
+                        Platform.runLater(new Runnable() 
+                        {
+                            @Override public void run() 
+                            {
+                                 CustomPopUp fileError = new CustomPopUp("Email sent regaurding " + currentLine,
+                                "Server Down", "ok", 250,50);
+                                fileError.show();
+                            }
+                        });
+                    }
+
                     
+                }
             }
-            
+            catch(IOException e)
+            {
+                  Platform.runLater(new Runnable() 
+                  {
+                     @Override public void run() 
+                      {
+                         CustomPopUp fileError = new CustomPopUp("problem reading serverList.txt",
+                        "Input Output error", "ok", 250,50);
+                        fileError.show();
+                      }
+                  });
+              }
+                return serverDown;
+        }
+        
+        //tells us if a url is reachable
+        public Boolean reachable(String url) 
+        {
+            try
+            {
+                InetAddress address = InetAddress.getByName(url);                    
+                return address.isReachable(1000);
             }
             
             catch(IOException e)
             {
-              CustomPopUp fileError = new CustomPopUp("problem reading files"              ,"Input Output error", "ok", 250,50);
-              fileError.show();
-            }
-            return serverDown;
+                return false;
+
+            } 
         }
         
-        public Boolean reachable(String url) //tells us if a url is reachable
-        {
-              try
-                {
-                    InetAddress address = InetAddress.getByName(url);                    return address.isReachable(1000);
-              
-                }
-                catch(IOException e)
-                {
-                    return false;
-                  
-                } 
-            
-            
-        }
-        
+        //Send message to notify user
         public void sendEmail(String affectedServer)
         {
             try
             {
-             //open file get recipient email
-             Scanner servers = new Scanner( new File("emailList.txt"));
-             String to = servers.nextLine();
-             
-             //email made for notifying users via google smtp
-             String sender = //
-             String pass =  //error left intentional so if someone trys to compile they realize they have to put in a reas passs word
-             
-             //email properties
-             Properties properties = System.getProperties();
-             properties.setProperty("mail.smtp.host", "smtp.gmail.com");
-             properties.put("mail.smtp.socketFactory.port", "465");
-             properties.put("mail.smtp.socketFactory.class","javax.net.ssl.SSLSocketFactory");
-             properties.put("mail.smtp.port","465");
-             properties.put("mail.smtp.auth","true");
-             
-             //include authentication from google
-             //create session using properties
-             Session session = Session.getDefaultInstance(properties,
-                 new javax.mail.Authenticator()
-                    {
-                        protected PasswordAuthentication getPasswordAuthentication(){
-                        return new PasswordAuthentication(sender,pass) ;
-               
-                    }
-                    });
-           
-                //create message using session with properties
-               MimeMessage message = new MimeMessage(session);
-               
-               try{
-                   //create message
+                //open file get recipient email
+                Scanner servers = new Scanner( new File("emailList.txt"));
+                String to = servers.nextLine();
+
+                //email made for notifying users via google smtp
+                String sender = "some email"; "error for the sake of showing you that you need valid strings here"
+                String pass = "some password";
+
+                //email properties
+                Properties properties = System.getProperties();
+                properties.setProperty("mail.smtp.host", "smtp.gmail.com");
+                properties.put("mail.smtp.socketFactory.port", "465");
+                properties.put("mail.smtp.socketFactory.class","javax.net.ssl.SSLSocketFactory");
+                properties.put("mail.smtp.port","465");
+                properties.put("mail.smtp.auth","true");
+
+                //include authentication from google
+                //create session using properties
+                Session session = Session.getDefaultInstance(properties,
+                new javax.mail.Authenticator()
+                {
+                    protected PasswordAuthentication getPasswordAuthentication()
+                        {
+                            return new PasswordAuthentication(sender,pass) ;
+                        }
+
+                });
+
+             //create message using session with properties
+            MimeMessage message = new MimeMessage(session);
+            try{
+                    //change message contents and send
                     message.setFrom(new InternetAddress(sender));
                     message.setRecipients(Message.RecipientType.TO, to);
                     message.setSubject("server down");
                     message.setText("web service down at " + affectedServer);
-               
                     Transport.send(message); // send message
-               
-               }
-                
-               catch(MessagingException e)
-            {
-              CustomPopUp fileError = new CustomPopUp("could not send email"
-              , "Message Error", "ok", 250,50);
-              fileError.show();
-             
-            }
                 }
-     
-         catch(IOException event)
+            catch(MessagingException e)
             {
-                CustomPopUp fileError = new CustomPopUp("Issue reading emailList"
-              , "File error", "ok", 250,50);
-              fileError.show();
+                    Platform.runLater(new Runnable() 
+                  {
+                     @Override public void run() 
+                      {
+                        CustomPopUp fileError = new CustomPopUp("could not send email"
+                        ,"Message Error", "ok", 250,50);
+                        fileError.show();
+                      }
+                  });
+                
+            }
+
+        }
+
+            catch(IOException event)
+            {
+                    Platform.runLater(new Runnable() 
+                  {
+                     @Override public void run() 
+                      {
+                        CustomPopUp fileError = new CustomPopUp("Issue reading emailList"
+                        , "File error", "ok", 250,50);
+                         fileError.show();
+                      }
+                  });
+                
             }
         }
-     }
+    }
 }
